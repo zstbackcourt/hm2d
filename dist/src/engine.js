@@ -24,8 +24,20 @@ export class Battle {
  p.swing={...profile,kind:action,age:0,face:p.face,combo:p.combo,damage:p.attack*multiplier,range,hit:false,canLaunch:p.y===0&&p.vy===0,launched:false};
  this.event(action);return true;
  }
+ bodyShape(){return [{radius:72,height:82},{radius:80,height:125},{radius:76,height:90}][this.index];}
+ separateBodies(previousSide=0){
+  const p=this.p,m=this.m,shape=this.bodyShape();
+  if(p.dodge>0||p.y<=-shape.height){this.bodyPassing=true;return;}
+  const gap=shape.radius+20,side=this.bodyPassing?Math.sign(p.x-m.x)||p.face:previousSide||Math.sign(p.x-m.x)||-m.face;
+  this.bodyPassing=false;
+  if((p.x-m.x)*side>=gap)return;
+  // Preserve the approach side under fast lunges/charges, but permit deliberate dodge/air crossings.
+  p.x=clamp(m.x+side*gap,35,this.width-35);
+  if((p.x-m.x)*side<gap)m.x=p.x-side*gap;
+  if(p.vx*side<0)p.vx=0;
+ }
  impact(a){const p=this.p;if(this.w.ranged)this.projectiles.push({x:p.x+a.face*16,y:p.y-30,vx:a.face*620,life:a.range/620,damage:a.damage,owner:'player',ult:a.kind==='ult'});
- else if(Math.abs(this.m.x-p.x)<=a.range+35&&(this.m.x-p.x)*a.face>=-15&&p.y>-130)this.hit(a.damage,a.kind==='ult');}
+ else if(Math.abs(this.m.x-p.x)<=a.range+this.bodyShape().radius&&(this.m.x-p.x)*a.face>=-15&&p.y>-130)this.hit(a.damage,a.kind==='ult');}
  beginMonsterAttack(move){const m=this.m;m.move=move;m.motion=monsterAttack(this.spec.id,move,m.enraged);m.state='windup';m.stateAge=0;m.timer=m.motion.windup;m.struck=false;m.shots=0;m.impactFx=false;m.face=this.p.x>=m.x?1:-1;m.aimX=this.p.x;m.aimY=this.p.y-30;this.event('warning');}
  monsterStep(dt){
   const m=this.m,p=this.p;const delta=p.x-m.x;m.anim+=dt;m.timer-=dt;m.stateAge=(m.stateAge||0)+dt;
@@ -51,17 +63,20 @@ export class Battle {
  for(const f of this.particles){f.life-=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy+=260*dt;}this.particles=this.particles.filter(f=>f.life>0);
  if(this.status!=='playing'){this.endAge+=dt;return;}
  if(this.hitstop>0){this.hitstop=Math.max(0,this.hitstop-dt);return;}
-const p=this.p,m=this.m;this.elapsed+=dt;this.time=Math.max(0,this.time-dt);if(this.time===0){this.status='lost';this.event('lost');return;}
+const p=this.p,m=this.m;const bodySide=Math.sign(p.x-m.x);this.elapsed+=dt;this.time=Math.max(0,this.time-dt);if(this.time===0){this.status='lost';this.event('lost');return;}
  for(const k of ['cool','c1','c2','healCool','inv','dodge','anim','land','hurt','comboTime'])p[k]=Math.max(0,p[k]-dt);m.hurt=Math.max(0,(m.hurt||0)-dt);m.flash=Math.max(0,m.flash-dt);this.shake=Math.max(0,this.shake-dt*30);p.stamina=Math.min(100,p.stamina+dt*20);
  const dir=(input.right?1:0)-(input.left?1:0),wasAir=p.y<0;
- if(p.dodge>0){p.x+=p.face*450*dt;p.vx=0;}
+ if(p.dodge>0){p.x+=p.face*800*dt;p.vx=0;}
  else{const target=dir*190*(p.swing?.45:1);p.vx+=clamp(target-p.vx,-2400*dt,2400*dt);p.x+=p.vx*dt;if(dir&&!p.swing)p.face=dir;if(!p.swing)p.action=dir?'run':'idle';}
  p.stride+=Math.abs(p.vx)*dt*.075;
  p.vy+=1050*dt;p.y+=p.vy*dt;if(p.y>0){p.y=0;p.vy=0;if(wasAir){p.land=.2;this.burst(p.x,0,'#c8c6a7',6);}}
- const a=p.swing;if(a){const old=a.age;a.age+=dt;if(a.launchAt!==null&&a.canLaunch&&!a.launched&&a.age>=a.launchAt){a.launched=true;if(p.y===0&&p.vy===0){p.vy=-340;p.land=0;this.burst(p.x,0,'#c8c6a7',7);}}const travel=t=>clamp((t-a.windup)/a.active,0,1);p.x+=a.face*a.lunge*(travel(a.age)-travel(old));if(!a.hit&&a.age>=a.impact){a.hit=true;this.impact(a);}if(a.age>=a.duration){p.swing=null;if(dir)p.face=dir;}}
+ this.separateBodies(bodySide);
+ const a=p.swing;if(a){const old=a.age;a.age+=dt;if(a.launchAt!==null&&a.canLaunch&&!a.launched&&a.age>=a.launchAt){a.launched=true;if(p.y===0&&p.vy===0){p.vy=-340;p.land=0;this.burst(p.x,0,'#c8c6a7',7);}}const travel=t=>clamp((t-a.windup)/a.active,0,1);p.x+=a.face*a.lunge*(travel(a.age)-travel(old));this.separateBodies(bodySide);if(!a.hit&&a.age>=a.impact){a.hit=true;this.impact(a);}if(a.age>=a.duration){p.swing=null;if(dir)p.face=dir;}}
  p.x=clamp(p.x,35,this.width-35);
  if(this.queuedAction&&p.cool===0&&p.dodge===0){const action=this.queuedAction;this.queuedAction=null;this.act(action);}if(input.attack)this.act('attack');
+ const beforeMonsterSide=Math.sign(p.x-m.x);
  this.monsterStep(dt);
+ this.separateBodies(beforeMonsterSide);
  for(const q of this.projectiles){const oldX=q.x;q.x+=q.vx*dt;q.y+=(q.vy||0)*dt;q.life-=dt;const target=q.owner==='player'?m:p;const crossed=Math.min(oldX,q.x)<=target.x+35&&Math.max(oldX,q.x)>=target.x-35;const height=q.owner==='player'?q.y>-120:Math.abs(q.y-(p.y-30))<35;if(crossed&&height){if(q.owner==='player')this.hit(q.damage,q.ult);else this.hurt(q.damage);q.life=-1;}}
  this.projectiles=this.projectiles.filter(q=>q.life>0);for(const f of this.fx){f.life-=dt;f.y-=dt*28;}this.fx=this.fx.filter(f=>f.life>0);
  }

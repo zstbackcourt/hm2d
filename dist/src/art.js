@@ -90,7 +90,8 @@ export function renderBattle(canvas,b){const c=canvas.getContext('2d');c.imageSm
  const shadow=13-clamp(-p.y/25,0,6);rect(c,p.x/2-shadow,-1,shadow*2,2,'#27453d');
  monster(c,m.x/2,0,b.spec.id,m.face,b.elapsed,m.state,m.flash>0,m,b.status==='won'?b.endAge:0);
  if(p.swing?.kind==='skill2'&&p.swing.age>p.swing.windup&&p.swing.age<p.swing.windup+p.swing.active){for(let i=2;i>0;i--){c.save();c.globalAlpha=.12/i;hunter(c,p.x/2-p.face*i*12,p.y/2,b.save.gender,b.w.id,p.face,b.elapsed,p.action,false,p);c.restore();}}
- hunter(c,p.x/2,p.y/2,b.save.gender,b.w.id,p.face,b.elapsed,p.action,p.inv>0&&Math.floor(b.elapsed*20)%2===0,p);
+ c.save();if(Math.abs(p.x-m.x)<190){c.shadowColor='#fff0bd';c.shadowBlur=3;}
+ hunter(c,p.x/2,p.y/2,b.save.gender,b.w.id,p.face,b.elapsed,p.action,p.inv>0&&Math.floor(b.elapsed*20)%2===0,p);c.restore();
  for(const f of b.particles||[]){c.globalAlpha=clamp(f.life/f.max);rect(c,f.x/2,f.y/2,2,2,f.color);}c.globalAlpha=1;
 
  for(const q of b.projectiles){rect(c,q.x/2-4,q.y/2,9,q.owner==='monster'?6:q.ult?5:2,q.owner==='monster'?'#ffb66d':'#e7e4ae');rect(c,q.x/2-7,q.y/2+1,3,2,'#d9824c');}

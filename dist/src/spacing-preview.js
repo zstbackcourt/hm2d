@@ -1,0 +1,5 @@
+import {Battle} from './engine.js';import {createSave} from './model.js';import {renderBattle} from './art.js';
+const canvas=document.querySelector('canvas'),monster=document.querySelector('#monster'),scene=document.querySelector('#scene'),status=document.querySelector('#status');let b,age=0,last=0,rolled=false;
+function reset(){const save=createSave('碰撞演示','female');save.weapon='db';b=new Battle(save,Number(monster.value));b.m.x=520;b.p.x=370;b.m.state='recover';b.m.timer=100;age=0;rolled=false;if(scene.value==='wall'){b.p.x=35;b.m.x=190;b.beginMonsterAttack(1);}}
+monster.onchange=scene.onchange=document.querySelector('#restart').onclick=reset;reset();
+function frame(now){const dt=Math.min((now-last)/1000||0,1/30);last=now;age+=dt;if(age>5)reset();if(scene.value==='roll'&&age>.6&&!rolled){b.p.x=b.m.x-100;b.p.face=1;b.act('dodge');rolled=true;}b.step(dt,scene.value==='walk'?{right:true,attack:true}:{});renderBattle(canvas,b);status.textContent=`中心间距 ${Math.round(Math.abs(b.p.x-b.m.x))} / 最小站位 ${b.bodyShape().radius+20} · ${b.p.dodge>0?'翻滚穿越中':'躯干碰撞启用'} · 怪物生命 ${b.m.hp}`;requestAnimationFrame(frame);}requestAnimationFrame(frame);
