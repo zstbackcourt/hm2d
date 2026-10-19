@@ -1,0 +1,15 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {hunterPose,attackMotion} from '../dist/src/motion.js';
+import {WEAPONS,getWeapon} from '../dist/src/content.js';
+import {Battle} from '../dist/src/engine.js';
+import {createSave} from '../dist/src/model.js';
+const airborne=vy=>({action:'idle',y:-60,vy,land:0,dodge:0,jumpStyle:0});
+const skill=(w,kind,phase=.8)=>{const a=attackMotion(w,kind);return {...a,kind,age:a.windup*phase,combo:0};};
+test('jump changes the blade hold throughout rise, apex and descent',()=>{const poses=[-400,-150,0,150,400].map(vy=>hunterPose(airborne(vy),0,'ls'));assert.ok(Math.max(...poses.map(p=>p.weapon))-Math.min(...poses.map(p=>p.weapon))>1);assert.ok(Math.max(...poses.map(p=>p.handY))-Math.min(...poses.map(p=>p.handY))>8);});
+test('crossing the jump apex does not snap arms or legs',()=>{const a=hunterPose(airborne(-.01),0,'ls'),b=hunterPose(airborne(.01),0,'ls');for(const key of ['weapon','lean','legA','legB'])assert.ok(Math.abs(a[key]-b[key])<.01,key);});
+for(const w of WEAPONS)test(`${w.id}: the three skill windups have distinct silhouettes`,()=>{const poses=['skill1','skill2','ult'].map(kind=>hunterPose({y:0,action:kind,swing:skill(w,kind)},0,w.id));for(let i=0;i<3;i++)for(let j=i+1;j<3;j++){const a=poses[i],b=poses[j];assert.ok(Math.abs(a.weapon-b.weapon)>.45||Math.hypot(a.handX-b.handX,a.handY-b.handY)>8,`${i} vs ${j}`);}});
+test('airborne skills retain tucked legs instead of a grounded stance',()=>{for(const kind of ['skill1','skill2','ult']){const swing=skill(getWeapon('ls'),kind),ground=hunterPose({y:0,swing},0,'ls'),air=hunterPose({...airborne(0),swing},0,'ls');assert.ok(Math.abs(air.legA-ground.legA)+Math.abs(air.legB-ground.legB)>.4);}});
+test('long sword ultimate rises, descends and lands with one impact',()=>{const b=new Battle(createSave('test','male'),0);b.m.x=b.p.x+80;b.m.timer=10;b.p.meter=100;b.act('ult');let minY=0,hits=0,hp=b.m.hp;for(let i=0;i<100;i++){b.step(1/60);minY=Math.min(minY,b.p.y);if(b.m.hp<hp){hits++;hp=b.m.hp;assert.ok(b.p.vy>=0,'impact is on descent');}}assert.ok(minY<-35);assert.equal(b.p.y,0);assert.equal(hits,1);});
+test('canceling ultimate before takeoff does not launch later',()=>{const b=new Battle(createSave('test','male'),0);b.p.meter=100;b.act('ult');b.act('dodge');for(let i=0;i<60;i++)b.step(1/60);assert.equal(b.p.y,0);assert.equal(b.m.hp,b.m.maxHp);});
+test('thrust recovery returns to the resting blade without snapping',()=>{for(const id of ['lance','gunlance','glaive']){const w=getWeapon(id),swing=skill(w,'attack');swing.age=swing.duration-.0001;const end=hunterPose({y:0,swing},0,id),rest=hunterPose({y:0},0,id);assert.ok(Math.abs(end.weapon-rest.weapon)<.01,id);}});

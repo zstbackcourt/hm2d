@@ -18,22 +18,47 @@ export function background(c,W,H,area=0,time=0,camera=0){const floor=H-32;const 
  for(let i=0;i<13;i++){const x=(noise(i+50)*W+time*(2+i%3))%W,y=30+noise(i+80)*(floor-40)+Math.sin(time+i)*4;rect(c,x,y,area===2?2:1,2,area===2?'#e7a36a':'#e7e3bd');}
  return floor;
 }
-export function hunter(c,x,y,gender='male',weapon='ls',face=1,t=0,action='idle',flash=false,body=null){c.save();c.translate(Math.round(x),Math.round(y));c.scale(face,1);if(flash)c.globalAlpha=.45;
- const pose=hunterPose(body||{action,stride:t*12},t);
- rect(c,-13,-1,27,2,'#27453d');c.translate(0,pose.bob);c.translate(0,-20);c.rotate(pose.roll);c.translate(0,20);
- const leg=(x,angle)=>pivot(c,x,-15,angle,()=>{rect(c,x-3,-16,6,9,'#343c3d');pivot(c,x,-8,Math.max(0,-angle)*.8,()=>{rect(c,x-3,-8,6,7,'#475656');rect(c,x-3,-3,10,4,'#ac8158');});});
- leg(-5,pose.legB);leg(5,pose.legA);
- c.translate(0,-15);c.rotate(pose.lean);c.translate(0,15);
- pivot(c,-9,-27,-pose.legA*.6,()=>{rect(c,-13,-28,6,13,'#637d78');rect(c,-12,-16,5,5,'#d7b18a');});
- poly(c,[[-11,-30],[9,-30],[12,-17],[5,-11],[-10,-15]],'#3c686c');rect(c,-6,-29,11,13,'#79a4a0');rect(c,-8,-18,18,4,'#b49667');rect(c,-12,-29,6,10,'#d2c39b');rect(c,8,-29,7,7,'#d2c39b');poly(c,[[8,-28],[14,-27],[11+pose.reach*.5,-17+Math.sin(pose.arm)*4],[8+pose.reach,-21],[14+pose.reach,-20],[14+pose.reach,-16],[8+pose.reach*.5,-12],[6,-20]],'#576768');rect(c,9+pose.reach,-21,6,5,'#dfb98c');
- rect(c,-6,-42,14,13,'#d7b18a');rect(c,-9,-43,17,5,'#343c3d');rect(c,-9,-40,5,9,'#343c3d');rect(c,4,-37,3,2,'#292f31');rect(c,-8,-31,17,5,'#b95845');poly(c,[[-6,-30],[-19,-32+Math.sin(t*9)*2],[-27,-27+Math.sin(t*9-1)*3],[-12,-26]],'#bf6950');
- if(gender==='female'){rect(c,-12,-40,4,17,'#343c3d');rect(c,-15,-28,5,8,'#343c3d');}else{rect(c,-3,-47,5,4,'#343c3d');rect(c,-4,-49,6,3,'#343c3d');}
- c.save();c.translate(10+pose.reach,-19);c.rotate(pose.weapon);
+function arm(c,sx,sy,hx,hy,bend,color){
+ const dx=hx-sx,dy=hy-sy,length=Math.hypot(dx,dy)||1;
+ const ex=(sx+hx)/2-dy/length*bend,ey=(sy+hy)/2+dx/length*bend;
+ const bone=(x,y,xx,yy,width,tint)=>{c.save();c.translate(x,y);c.rotate(Math.atan2(yy-y,xx-x));rect(c,0,-width/2,Math.hypot(xx-x,yy-y)+2,width,tint);c.restore();};
+ bone(sx,sy,ex,ey,6,color);bone(ex,ey,hx,hy,5,'#667b76');rect(c,hx-2,hy-2,5,5,'#dfb98c');
+}
+function weaponArt(c,weapon){
  if(weapon==='bow'){poly(c,[[5,-27],[13,-17],[16,-3],[12,10],[5,18],[9,2],[9,-13]],'#c5a578');rect(c,5,-26,1,44,'#e4d9ae');rect(c,-5,-4,27,2,'#dadcc0');}
  else if(['lbg','hbg'].includes(weapon)){rect(c,0,-7,weapon==='hbg'?29:23,10,'#4d5350');rect(c,14,-10,10,5,'#a9aa8b');rect(c,-3,0,7,9,'#8f7151');rect(c,22,-5,9,6,'#c6c6ac');}
  else if(['hammer','horn'].includes(weapon)){rect(c,1,-25,4,36,'#967452');rect(c,-7,-30,20,15,'#a9b6a1');rect(c,-5,-29,5,12,'#d4cfac');if(weapon==='horn'){rect(c,10,-35,7,15,'#ad986d');rect(c,13,-34,7,5,'#dbcaa0');}}
  else{const wide=['gs','axe','cb'].includes(weapon)?10:4;rect(c,1,-37,wide,37,'#c7d7ca');rect(c,1,-37,2,34,'#e8e8c8');poly(c,[[1,-37],[1+wide,-37],[1+wide,-48]],'#d9dfc4');rect(c,-4,-3,wide+10,4,'#c0a16b');rect(c,2,1,3,11,'#665340');if(['lance','gunlance','glaive'].includes(weapon))rect(c,2,-52,3,68,'#c4c8ac');if(weapon==='db'){rect(c,-18,-24,4,25,'#d4ddc4');}if(['sns','cb','lance'].includes(weapon)){rect(c,-21,-11,12,17,'#7f9290');rect(c,-18,-8,6,11,'#b59c70');}}
- c.restore();c.restore();}
+
+}
+export function hunter(c,x,y,gender='male',weapon='ls',face=1,t=0,action='idle',flash=false,body=null){
+ c.save();c.translate(Math.round(x),Math.round(y));c.scale(face,1);if(flash)c.globalAlpha=.45;
+ const pose=hunterPose(body||{action,stride:t*12},t,weapon),a=body?.swing;
+ if(!body)rect(c,-13,-1,27,2,'#27453d');
+ c.translate(0,pose.bob);c.scale(pose.scaleX,pose.scaleY);c.translate(0,-20);c.rotate(pose.roll);c.translate(0,20);
+ const leg=(x,angle,knee)=>pivot(c,x,-15,angle,()=>{rect(c,x-3,-16,6,9,'#343c3d');pivot(c,x,-8,knee,()=>{rect(c,x-3,-8,6,7,'#475656');rect(c,x-3,-3,10,4,'#ac8158');});});
+ leg(-5,pose.legB,pose.kneeB);leg(5,pose.legA,pose.kneeA);
+ c.translate(0,-15);c.rotate(pose.lean);c.translate(0,15);
+ const supportX=pose.handX-Math.sin(pose.weapon)*7,supportY=pose.handY+Math.cos(pose.weapon)*7;
+ const offX=pose.offX+(supportX-pose.offX)*pose.twoHand,offY=pose.offY+(supportY-pose.offY)*pose.twoHand;
+ arm(c,-9,-27,offX,offY,5,'#637d78');
+ poly(c,[[-11,-30],[9,-30],[12,-17],[5,-11],[-10,-15]],'#3c686c');rect(c,-6,-29,11,13,'#79a4a0');rect(c,-8,-18,18,4,'#b49667');rect(c,-12,-29,6,10,'#d2c39b');rect(c,8,-29,7,7,'#d2c39b');
+ pivot(c,0,-31,pose.head,()=>{rect(c,-6,-42,14,13,'#d7b18a');rect(c,-9,-43,17,5,'#343c3d');rect(c,-9,-40,5,9,'#343c3d');rect(c,4,-37,3,2,'#292f31');
+ if(gender==='female'){rect(c,-12,-40,4,17,'#343c3d');rect(c,-15,-28,5,8,'#343c3d');}else{rect(c,-3,-47,5,4,'#343c3d');rect(c,-4,-49,6,3,'#343c3d');}});
+ rect(c,-8,-31,17,5,'#b95845');poly(c,[[-6,-30],[-19,-32+Math.sin(t*9)*2+pose.scarf*.5],[-27,-27+Math.sin(t*9-1)*3+pose.scarf],[-12,-26]],'#bf6950');
+ if(pose.trail>0&&a&&!a.ranged){
+  c.save();c.translate(pose.handX,pose.handY);c.globalAlpha*=pose.trail*.8;
+  c.strokeStyle=a.kind==='ult'?'#ffd875':a.kind==='attack'?'#fff3ce':'#8de2d0';c.lineWidth=a.kind==='ult'?5:3;c.beginPath();
+  if(a.kind==='skill2'||a.thrust&&a.kind!=='ult'){c.moveTo(-15,0);c.lineTo(a.range/2,0);}
+  else if(a.kind==='ult'){c.arc(0,0,55,-1.8,1.25);c.moveTo(40,-52);c.lineTo(47,28);}
+  else c.arc(0,0,a.kind==='skill1'?52:42,pose.weapon-3,pose.weapon-1.1);
+  c.stroke();c.restore();
+ }
+ arm(c,10,-27,pose.handX,pose.handY,5,'#576768');
+ c.save();c.translate(pose.handX,pose.handY);c.rotate(pose.weapon);weaponArt(c,weapon);c.restore();
+ if(pose.twoHand>.5)rect(c,offX-2,offY-2,5,5,'#dfb98c');rect(c,pose.handX-2,pose.handY-2,5,5,'#dfb98c');
+ c.restore();
+}
 export function monster(c,x,y,id='izuchi',face=-1,t=0,state='idle',flash=false,body=null,death=0){c.save();c.translate(Math.round(x),Math.round(y));c.scale(face,1);if(flash)c.globalAlpha=.5;const pose=monsterPose(body||{state},t,id);rect(c,-38,-1,78,3,'#2d4940');c.translate(0,pose.bob+clamp(death)*18);c.rotate(pose.lean-pose.recoil+clamp(death)*1.3);
 
  if(id==='izuchi'){
@@ -52,9 +77,10 @@ export function monster(c,x,y,id='izuchi',face=-1,t=0,state='idle',flash=false,b
  }c.restore();}
 export function renderBattle(canvas,b){const c=canvas.getContext('2d');c.imageSmoothingEnabled=false;c.save();c.scale(2,2);const W=canvas.width/2,H=canvas.height/2;const camera=Math.max(0,Math.min(b.width/2-W,b.p.x/2-W*.36));const ground=background(c,W,H,b.index,b.elapsed,camera);if(b.shake>0&&!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches)c.translate(Math.round(Math.sin(b.elapsed*90)*b.shake/2),0);
  c.save();c.translate(-camera,ground);const m=b.m,p=b.p;if(m.state==='windup'){const range=m.move===1?140:75;rect(c,m.x/2+(m.face<0?-range:0),-3,range,3,'#e9ab69');c.globalAlpha=.15+.1*Math.sin(b.elapsed*20);rect(c,m.x/2+(m.face<0?-range:0),-36,range,36,'#f2a767');c.globalAlpha=1;}
- monster(c,m.x/2,0,b.spec.id,m.face,b.elapsed,m.state,m.flash>0,m,b.status==='won'?b.endAge:0);hunter(c,p.x/2,p.y/2,b.save.gender,b.w.id,p.face,b.elapsed,p.action,p.inv>0&&Math.floor(b.elapsed*20)%2===0,p);
- const pose=hunterPose(p,b.elapsed),a=p.swing;
- if(pose.trail>0&&a&&!a.ranged){c.save();c.translate(p.x/2,p.y/2-20);c.scale(a.face,1);c.globalAlpha=pose.trail*.8;c.strokeStyle=a.kind==='ult'?'#ffd875':a.kind==='attack'?'#fff3ce':'#8de2d0';c.lineWidth=a.heavy?5:3;c.beginPath();if(a.thrust){c.moveTo(8,-2);c.lineTo(a.range/2+12,-2);}else c.arc(10,0,a.kind==='ult'?70:42,pose.weapon-2.8,pose.weapon-.7);c.stroke();c.restore();}
+ const shadow=13-clamp(-p.y/25,0,6);rect(c,p.x/2-shadow,-1,shadow*2,2,'#27453d');
+ monster(c,m.x/2,0,b.spec.id,m.face,b.elapsed,m.state,m.flash>0,m,b.status==='won'?b.endAge:0);
+ if(p.swing?.kind==='skill2'&&p.swing.age>p.swing.windup&&p.swing.age<p.swing.windup+p.swing.active){for(let i=2;i>0;i--){c.save();c.globalAlpha=.12/i;hunter(c,p.x/2-p.face*i*12,p.y/2,b.save.gender,b.w.id,p.face,b.elapsed,p.action,false,p);c.restore();}}
+ hunter(c,p.x/2,p.y/2,b.save.gender,b.w.id,p.face,b.elapsed,p.action,p.inv>0&&Math.floor(b.elapsed*20)%2===0,p);
  for(const f of b.particles||[]){c.globalAlpha=clamp(f.life/f.max);rect(c,f.x/2,f.y/2,2,2,f.color);}c.globalAlpha=1;
 
  for(const q of b.projectiles){rect(c,q.x/2-4,q.y/2,9,q.owner==='monster'?6:q.ult?5:2,q.owner==='monster'?'#ffb66d':'#e7e4ae');rect(c,q.x/2-7,q.y/2+1,3,2,'#d9824c');}

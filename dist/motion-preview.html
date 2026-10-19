@@ -1,0 +1,20 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>跳跃与技能 · 动作预览</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#f4f3e9;color:#29443c;font:16px system-ui,sans-serif}main{max-width:1120px;margin:auto;padding:32px 24px}a{color:#486c59}h1{font-family:serif;margin:12px 0}p{color:#65766b;line-height:1.6}header{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap}select,button{font:inherit;padding:10px 16px;border:1px solid #acb7a5;background:#faf9f0;color:#29443c;border-radius:4px}button{cursor:pointer}.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}section{margin:20px 0;background:#e8ece0;border:1px solid #c3cbb9;padding:16px}h2{font-size:18px;margin:0 0 8px}canvas{width:100%;height:auto;image-rendering:pixelated;display:block}.note{font-size:13px}button:focus-visible,select:focus-visible{outline:3px solid #bf8c48}</style>
+<main><header><div><a href="/">← 返回狩猎</a><h1>跳跃与技能 · 动作预览</h1><p>观察持刀、重心与双腿的变化。每一格都来自游戏实际动作。</p></div><div class="controls"><label>武器 <select id="weapon"></select></label><button id="play">播放动画</button><button id="face">面向左侧</button></div></header><div id="sheets"></div><p class="note">预览独立运行，不读取或修改你的猎人存档。动画以半速播放，便于观察起手与收招。</p></main>
+<script type="module">
+import {Battle} from './src/engine.js';import {createSave} from './src/model.js';import {WEAPONS} from './src/content.js';import {hunter} from './src/art.js';
+const kinds=['jump','skill1','skill2','ult'];
+const select=document.querySelector('#weapon');for(const w of WEAPONS){const o=document.createElement('option');o.value=w.id;o.textContent=w.name;select.append(o);}
+let clips=[],playing=false,face=1,clock=0,last=0;
+function rebuild(){const w=WEAPONS.find(w=>w.id===select.value);document.querySelector('#sheets').innerHTML='';clips=kinds.map((kind,index)=>{
+ const save=createSave('预览','female');save.weapon=w.id;const battle=new Battle(save,0);battle.m.x=1700;battle.m.timer=1000;battle.p.meter=100;battle.act(kind);
+ const duration=kind==='jump'?1.12:battle.p.swing.duration+.18,frames=[];for(let i=0;i<=Math.ceil(duration*60);i++){frames.push(structuredClone(battle.p));battle.step(1/60);}
+ const section=document.createElement('section'),h=document.createElement('h2'),c=document.createElement('canvas');h.textContent=index===0?'跳跃 · 收刀上升 → 收腿转刀 → 伸腿落地':w.skills[index-1];c.width=1000;c.height=210;c.setAttribute('aria-label',h.textContent+'动作分解');section.append(h,c);document.querySelector('#sheets').append(section);
+ const moments=kind==='jump'?[.06,.23,.45,.72,.92]:[.04,frames[0].swing.windup,frames[0].swing.impact,frames[0].swing.duration*.86,duration-.02];return{c,frames,moments,duration,kind,w};});clock=0;draw();}
+function draw(){for(const clip of clips){const c=clip.c.getContext('2d');c.clearRect(0,0,1000,210);c.imageSmoothingEnabled=false;
+ clip.moments.forEach((base,i)=>{const time=playing?(base+clock)%clip.duration:base,p=clip.frames[Math.min(clip.frames.length-1,Math.round(time*60))],x=100+i*200;
+ c.fillStyle='#ced6c2';c.fillRect(i*200+10,174,180,2);c.fillStyle='#466353';c.font='13px system-ui';c.textAlign='center';c.fillText(clip.kind==='jump'?['离地','上升','最高点','下落','落地'][i]:['起手','蓄势','挥击','收招','恢复'][i],x,200);
+ c.save();c.translate(x,174);c.scale(1.55,1.55);c.fillStyle='#81927a';c.fillRect(-10,0,20,2);hunter(c,0,p.y/2,'female',clip.w.id,face,time,p.action,false,p);c.restore();});}}
+select.onchange=rebuild;document.querySelector('#play').onclick=e=>{playing=!playing;e.target.textContent=playing?'暂停动画':'播放动画';if(!playing){clock=0;draw();}};document.querySelector('#face').onclick=e=>{face*=-1;e.target.textContent=face===1?'面向左侧':'面向右侧';draw();};
+function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(playing){clock+=dt*.5;draw();}requestAnimationFrame(frame);}rebuild();requestAnimationFrame(frame);
+</script></html>
