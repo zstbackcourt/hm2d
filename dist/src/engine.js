@@ -1,3 +1,4 @@
+import {monsterAttack,monsterMouth} from './monster-motion.js';
 import {getWeapon,MONSTERS} from './content.js';
 import {attackMotion,clamp} from './motion.js';
 import {stats} from './model.js';
@@ -25,6 +26,27 @@ export class Battle {
  }
  impact(a){const p=this.p;if(this.w.ranged)this.projectiles.push({x:p.x+a.face*16,y:p.y-30,vx:a.face*620,life:a.range/620,damage:a.damage,owner:'player',ult:a.kind==='ult'});
  else if(Math.abs(this.m.x-p.x)<=a.range+35&&(this.m.x-p.x)*a.face>=-15&&p.y>-130)this.hit(a.damage,a.kind==='ult');}
+ beginMonsterAttack(move){const m=this.m;m.move=move;m.motion=monsterAttack(this.spec.id,move,m.enraged);m.state='windup';m.stateAge=0;m.timer=m.motion.windup;m.struck=false;m.shots=0;m.impactFx=false;m.face=this.p.x>=m.x?1:-1;m.aimX=this.p.x;m.aimY=this.p.y-30;this.event('warning');}
+ monsterStep(dt){
+  const m=this.m,p=this.p;const delta=p.x-m.x;m.anim+=dt;m.timer-=dt;m.stateAge=(m.stateAge||0)+dt;
+  if(m.state==='approach'){m.enraged=m.hp<m.maxHp*.35;m.face=delta>=0?1:-1;if(Math.abs(delta)>105)m.x+=m.face*this.spec.speed*(m.enraged?1.4:1)*dt;if(m.timer<=0&&(Math.abs(delta)<150||this.index===2))this.beginMonsterAttack((m.move+1)%3);}
+  else{
+   const a=m.motion||monsterAttack(this.spec.id,m.move,m.enraged);
+   if(m.state==='windup'&&m.timer<=0){m.motion=a;m.state='strike';m.stateAge=0;m.timer=a.strike;m.shots=0;}
+   else if(m.state==='strike'){
+    const u=m.stateAge/a.strike;
+    if(a.kind==='charge'&&u<.9)m.x+=m.face*a.speed*Math.min(1,u/.16)*Math.min(1,(.9-u)/.18)*dt;
+    if(a.kind==='fire'){
+     while((m.shots||0)<a.shots.length&&u>=a.shots[m.shots||0]){const mouth=monsterMouth(m,this.elapsed,this.spec.id),vx=m.face*260,travel=Math.max(.2,Math.abs((m.aimX??p.x)-mouth.x)/260),vy=clamp(((m.aimY??p.y-30)-mouth.y)/travel,-100,130);this.projectiles.push({...mouth,vx,vy,life:5,owner:'monster',damage:this.spec.damage});m.shots=(m.shots||0)+1;this.burst(mouth.x,mouth.y,'#ffb66d',6);}
+    }else if(u>=a.activeStart&&u<=a.activeEnd){
+     if(!m.impactFx){m.impactFx=true;if(a.kind==='slam'||a.kind==='charge')this.burst(m.x+m.face*50,0,'#c8b692',10);}
+     if(!m.struck&&(p.x-m.x)*m.face>-35&&Math.abs(p.x-m.x)<a.radius&&p.y>-a.height){if(this.hurt(this.spec.damage*(m.enraged?1.2:1)))m.struck=true;}
+    }
+    if(m.timer<=0){m.state='recover';m.stateAge=0;m.timer=a.recover;}
+   }else if(m.state==='recover'&&m.timer<=0){m.state='approach';m.stateAge=0;m.motion=null;m.timer=m.enraged?.25:.65;}
+  }
+  m.x=clamp(m.x,65,this.width-65);
+ }
  step(dt,input={}){
  for(const f of this.particles){f.life-=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy+=260*dt;}this.particles=this.particles.filter(f=>f.life>0);
  if(this.status!=='playing'){this.endAge+=dt;return;}
@@ -39,13 +61,8 @@ const p=this.p,m=this.m;this.elapsed+=dt;this.time=Math.max(0,this.time-dt);if(t
  const a=p.swing;if(a){const old=a.age;a.age+=dt;if(a.launchAt!==null&&a.canLaunch&&!a.launched&&a.age>=a.launchAt){a.launched=true;if(p.y===0&&p.vy===0){p.vy=-340;p.land=0;this.burst(p.x,0,'#c8c6a7',7);}}const travel=t=>clamp((t-a.windup)/a.active,0,1);p.x+=a.face*a.lunge*(travel(a.age)-travel(old));if(!a.hit&&a.age>=a.impact){a.hit=true;this.impact(a);}if(a.age>=a.duration){p.swing=null;if(dir)p.face=dir;}}
  p.x=clamp(p.x,35,this.width-35);
  if(this.queuedAction&&p.cool===0&&p.dodge===0){const action=this.queuedAction;this.queuedAction=null;this.act(action);}if(input.attack)this.act('attack');
- m.enraged=m.hp<m.maxHp*.35;const delta=p.x-m.x,abs=Math.abs(delta);m.anim+=dt;m.timer-=dt;m.stateAge=(m.stateAge||0)+dt;
- if(m.state==='approach'){m.face=delta>=0?1:-1;if(abs>105)m.x+=m.face*this.spec.speed*(m.enraged?1.4:1)*dt;if(m.timer<=0&&(abs<150||this.index===2)){m.state='windup';m.stateAge=0;m.timer=m.enraged?.65:.95;m.move=(m.move+1)%3;m.struck=false;this.event('warning');}}
- else if(m.state==='windup'&&m.timer<=0){m.state='strike';m.stateAge=0;m.timer=m.move===1?.55:.28;if(this.index===2&&m.move===0){for(let i=0;i<3;i++)this.projectiles.push({x:m.x+m.face*50,y:-28-i*30,vx:m.face*(220+i*45),life:5,owner:'monster',damage:this.spec.damage});m.struck=true;}}
- else if(m.state==='strike'){if(m.move===1)m.x+=m.face*(this.index===1?340:430)*dt;const inFront=(p.x-m.x)*m.face>-35;const radius=m.move===2?135:115;if(!m.struck&&Math.abs(p.x-m.x)<radius&&p.y>-(m.move===2?45:80)&&inFront){if(this.hurt(this.spec.damage*(m.enraged?1.2:1)))m.struck=true;}if(m.timer<=0){m.state='recover';m.stateAge=0;m.timer=m.enraged?.65:1.25;}}
- else if(m.state==='recover'&&m.timer<=0){m.state='approach';m.stateAge=0;m.timer=m.enraged?.25:.65;}
- m.x=Math.max(65,Math.min(this.width-65,m.x));
- for(const q of this.projectiles){const oldX=q.x;q.x+=q.vx*dt;q.life-=dt;const target=q.owner==='player'?m:p;const crossed=Math.min(oldX,q.x)<=target.x+35&&Math.max(oldX,q.x)>=target.x-35;const height=q.owner==='player'?q.y>-120:Math.abs(q.y-(p.y-30))<35;if(crossed&&height){if(q.owner==='player')this.hit(q.damage,q.ult);else this.hurt(q.damage);q.life=-1;}}
+ this.monsterStep(dt);
+ for(const q of this.projectiles){const oldX=q.x;q.x+=q.vx*dt;q.y+=(q.vy||0)*dt;q.life-=dt;const target=q.owner==='player'?m:p;const crossed=Math.min(oldX,q.x)<=target.x+35&&Math.max(oldX,q.x)>=target.x-35;const height=q.owner==='player'?q.y>-120:Math.abs(q.y-(p.y-30))<35;if(crossed&&height){if(q.owner==='player')this.hit(q.damage,q.ult);else this.hurt(q.damage);q.life=-1;}}
  this.projectiles=this.projectiles.filter(q=>q.life>0);for(const f of this.fx){f.life-=dt;f.y-=dt*28;}this.fx=this.fx.filter(f=>f.life>0);
  }
 }

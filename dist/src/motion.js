@@ -86,12 +86,4 @@ export function hunterPose(p,t,weapon='ls'){
  if(p.hurt>0){pose.lean-=p.hurt*1.4;pose.bob-=p.hurt*8;}
  return pose;
 }
-export function monsterPose(m,t,id){
- const walking=m.state==='approach',cycle=t*(id==='arzuros'?7:11),wind=m.state==='windup'?ease((m.stateAge||0)/(m.enraged?.65:.95)):0;
- const strike=m.state==='strike'?Math.sin(clamp((m.stateAge||0)/(m.move===1?.55:.28))*Math.PI):0;
- const recovery=m.state==='recover'?(1-ease((m.stateAge||0)/(m.enraged?.65:1.25)))*.25:0;
- return {bob:walking?-Math.abs(Math.sin(cycle))*3:wind*3-strike*7,lean:-wind*.12+strike*.22+recovery,
- leg:walking?Math.sin(cycle)*.45:strike*.5,tail:Math.sin(t*3)*.12+(m.move===0||id==='rathian'&&m.move===2?-wind*.7+strike*1.5:-wind*.15+strike*.25),
- head:m.move===1?wind*.2-strike*.25:-wind*.3+strike*.45,arm:m.move===1?-.4:-wind*1.35+strike*1.8,wing:Math.sin(t*3)*.08+(m.move===2?-wind*.6+strike*1.1:-wind*.2+strike*.3),
- recoil:(m.hurt||0)*1.2};
-}
+export {monsterPose} from './monster-motion.js';
