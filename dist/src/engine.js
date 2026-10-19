@@ -1,13 +1,15 @@
+import {createSmallPack,stepSmallMonsters} from './small-monsters.js';
 import {chooseNormalVariant,normalVariants} from './normal-attacks.js';
 import {monsterAttack,monsterMouth} from './monster-motion.js';
 import {getWeapon,MONSTERS} from './content.js';
 import {attackMotion,clamp} from './motion.js';
 import {stats} from './model.js';
 export class Battle {
- constructor(save,index){this.save=save;this.index=index;this.spec=MONSTERS[index];this.w=getWeapon(save.weapon);const st=stats(save);this.p={x:240,y:0,vy:0,face:1,hp:st.hp,maxHp:st.hp,attack:st.attack,defense:st.defense,stamina:100,meter:0,potions:3,cool:0,c1:0,c2:0,healCool:0,inv:0,dodge:0,anim:0,action:'idle',vx:0,stride:0,land:0,hurt:0,combo:0,comboTime:0,swing:null,jumpStyle:0};this.m={x:760,hp:this.spec.hp,maxHp:this.spec.hp,face:-1,state:'approach',timer:1,move:0,flash:0,anim:0,struck:false,enraged:false};this.hitstop=0;this.endAge=0;this.particles=[];this.queuedAction=null;this.status='playing';this.time=300;this.elapsed=0;this.projectiles=[];this.fx=[];this.shake=0;this.events=[];this.width=1800;this.id=globalThis.crypto?.randomUUID?.()||String(Date.now()+Math.random());}
+ constructor(save,index,smallRng=Math.random){this.save=save;this.index=index;this.spec=MONSTERS[index];this.w=getWeapon(save.weapon);const st=stats(save);this.p={x:240,y:0,vy:0,face:1,hp:st.hp,maxHp:st.hp,attack:st.attack,defense:st.defense,stamina:100,meter:0,potions:3,cool:0,c1:0,c2:0,healCool:0,inv:0,dodge:0,anim:0,action:'idle',vx:0,stride:0,land:0,hurt:0,combo:0,comboTime:0,swing:null,jumpStyle:0};this.m={x:760,hp:this.spec.hp,maxHp:this.spec.hp,face:-1,state:'approach',timer:1,move:0,flash:0,anim:0,struck:false,enraged:false};this.hitstop=0;this.endAge=0;this.particles=[];this.queuedAction=null;this.status='playing';this.time=300;this.elapsed=0;this.projectiles=[];this.fx=[];this.shake=0;this.events=[];this.width=1800;this.smallRng=smallRng;this.smalls=createSmallPack(index,smallRng);this.id=globalThis.crypto?.randomUUID?.()||String(Date.now()+Math.random());}
  event(kind,text,x,y,color){this.events.push({kind,text});if(text)this.fx.push({text,x,y:y??-80,life:1,max:1,color:color||'#fff2c2'});}
  burst(x,y,color,count=10){for(let i=0;i<count;i++){const a=i*2.399;this.particles.push({x,y,vx:Math.cos(a)*(55+i*8),vy:Math.sin(a)*(50+i*6)-35,life:.22+i*.014,max:.22+i*.014,color});}}
  hit(damage,ultimate=false){if(this.status!=='playing')return;damage=Math.round(damage);this.m.hp=Math.max(0,this.m.hp-damage);this.m.flash=.12;this.m.hurt=.2;this.hitstop=Math.max(this.hitstop,ultimate?.085:damage>30?.055:.035);this.burst(this.m.x,-55,ultimate?'#ffd875':'#fff0ba',ultimate?20:10);this.shake=Math.min(8,damage/8);if(!ultimate)this.p.meter=Math.min(100,this.p.meter+8);this.event('hit',String(damage),this.m.x,-100,ultimate?'#ffd875':'#fff4ce');if(this.m.hp<=0){this.status='won';this.event('won');}}
+ hitSmall(s,damage){if(this.status!=='playing'||s.hp<=0)return;damage=Math.round(damage);s.hp=Math.max(0,s.hp-damage);s.flash=.16;this.burst(s.x,s.y-20,'#e2ca9a',5);this.event('small-hit',String(damage),s.x,s.y-45,'#e5d7b4');if(s.hp===0){s.state='dead';s.age=0;s.deadAge=0;this.event('small-killed');}}
  hurt(damage){const p=this.p;if(this.status!=='playing'||p.inv>0)return false;p.hp=Math.max(0,p.hp-Math.max(1,damage-p.defense));p.inv=.8;p.hurt=.25;this.hitstop=.045;this.burst(p.x,p.y-35,'#ee9b76',8);this.shake=7;this.event('hurt','−'+Math.max(1,damage-p.defense),p.x,p.y-70,'#ff8c78');if(p.hp<=0){this.status='lost';this.event('lost');}return true;}
  request(action){if(this.status!=='playing')return false;if(!['skill1','skill2','ult'].includes(action))return this.act(action);const p=this.p;if((action==='skill1'&&p.c1>0)||(action==='skill2'&&p.c2>0)||(action==='ult'&&p.meter<100))return false;if(p.cool>0||p.dodge>0){this.queuedAction=action;return true;}return this.act(action);}
  act(action){if(this.status!=='playing')return false;const p=this.p,w=this.w;
@@ -39,7 +41,9 @@ export class Battle {
   if(p.vx*side<0)p.vx=0;
  }
  impact(a){const p=this.p;if(this.w.ranged)this.projectiles.push({x:p.x+a.face*16,y:p.y-30,vx:a.face*620,life:a.range/620,damage:a.damage,owner:'player',ult:a.kind==='ult'});
- else if(Math.abs(this.m.x-p.x)<=a.range+this.bodyShape().radius&&(this.m.x-p.x)*a.face>=-15&&p.y>-130)this.hit(a.damage,a.kind==='ult');}
+ else {for(const s of this.smalls)if(s.hp>0&&Math.abs(s.x-p.x)<=a.range+22&&(s.x-p.x)*a.face>=-15&&s.y>=p.y-90&&s.y-45<=p.y+5)this.hitSmall(s,a.damage);
+ if(Math.abs(this.m.x-p.x)<=a.range+this.bodyShape().radius&&(this.m.x-p.x)*a.face>=-15&&p.y>-130)this.hit(a.damage,a.kind==='ult');}}
+
  beginMonsterAttack(move){const m=this.m;m.move=move;m.motion=monsterAttack(this.spec.id,move,m.enraged);m.state='windup';m.stateAge=0;m.timer=m.motion.windup;m.struck=false;m.shots=0;m.impactFx=false;m.face=this.p.x>=m.x?1:-1;m.aimX=this.p.x;m.aimY=this.p.y-30;this.event('warning');}
  monsterStep(dt){
   const m=this.m,p=this.p;const delta=p.x-m.x;m.anim+=dt;m.timer-=dt;m.stateAge=(m.stateAge||0)+dt;
@@ -79,7 +83,15 @@ const p=this.p,m=this.m;const bodySide=Math.sign(p.x-m.x);this.elapsed+=dt;this.
  const beforeMonsterSide=Math.sign(p.x-m.x);
  this.monsterStep(dt);
  this.separateBodies(beforeMonsterSide);
- for(const q of this.projectiles){const oldX=q.x;q.x+=q.vx*dt;q.y+=(q.vy||0)*dt;q.life-=dt;const target=q.owner==='player'?m:p;const crossed=Math.min(oldX,q.x)<=target.x+35&&Math.max(oldX,q.x)>=target.x-35;const height=q.owner==='player'?q.y>-120:Math.abs(q.y-(p.y-30))<35;if(crossed&&height){if(q.owner==='player')this.hit(q.damage,q.ult);else this.hurt(q.damage);q.life=-1;}}
+ stepSmallMonsters(this,dt);
+ for(const q of this.projectiles){const oldX=q.x;q.x+=q.vx*dt;q.y+=(q.vy||0)*dt;q.life-=dt;
+  if(q.owner==='player'){
+   const targets=[{body:m,radius:35,bottom:0,top:-120,boss:true},...this.smalls.filter(s=>s.hp>0).map(s=>({body:s,radius:22,bottom:s.y+4,top:s.y-45}))];
+   const crossed=targets.filter(t=>Math.min(oldX,q.x)<=t.body.x+t.radius&&Math.max(oldX,q.x)>=t.body.x-t.radius&&q.y>=t.top&&q.y<=t.bottom);
+   crossed.sort((a,b)=>Math.max(0,(a.body.x-oldX)*Math.sign(q.vx)-a.radius)-Math.max(0,(b.body.x-oldX)*Math.sign(q.vx)-b.radius));
+   if(crossed.length){const target=crossed[0];if(target.boss)this.hit(q.damage,q.ult);else this.hitSmall(target.body,q.damage);q.life=-1;}
+  }else if(Math.min(oldX,q.x)<=p.x+35&&Math.max(oldX,q.x)>=p.x-35&&Math.abs(q.y-(p.y-30))<35){this.hurt(q.damage);q.life=-1;}
+ }
  this.projectiles=this.projectiles.filter(q=>q.life>0);for(const f of this.fx){f.life-=dt;f.y-=dt*28;}this.fx=this.fx.filter(f=>f.life>0);
  }
 }

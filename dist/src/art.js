@@ -1,3 +1,4 @@
+import {drawSmall} from './small-art.js';
 import {drawEcology} from './ecology.js';
 import {hunterPose,monsterPose,clamp} from './motion.js';
 import {MONSTERS} from './content.js';
@@ -89,6 +90,7 @@ export function monster(c,x,y,id='izuchi',face=-1,t=0,state='idle',flash=false,b
  }c.restore();}
 export function renderBattle(canvas,b){const c=canvas.getContext('2d');c.imageSmoothingEnabled=false;c.save();c.scale(2,2);const W=canvas.width/2,H=canvas.height/2;const camera=Math.max(0,Math.min(b.width/2-W,b.p.x/2-W*.36));const ground=background(c,W,H,b.index,b.elapsed,camera);if(b.shake>0&&!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches)c.translate(Math.round(Math.sin(b.elapsed*90)*b.shake/2),0);
  c.save();c.translate(-camera,ground);const m=b.m,p=b.p;if(m.state==='windup'){const range=m.motion?.kind==='charge'?150:m.motion?.kind==='fire'?190:(m.motion?.radius||150)/2;rect(c,m.x/2+(m.face<0?-range:0),-3,range,3,'#e9ab69');c.globalAlpha=.15+.1*Math.sin(b.elapsed*20);rect(c,m.x/2+(m.face<0?-range:0),-36,range,36,'#f2a767');c.globalAlpha=1;}
+ for(const s of b.smalls||[])drawSmall(c,s,b.elapsed);
  const shadow=13-clamp(-p.y/25,0,6);rect(c,p.x/2-shadow,-1,shadow*2,2,'#27453d');
  monster(c,m.x/2,0,b.spec.id,m.face,b.elapsed,m.state,m.flash>0,m,b.status==='won'?b.endAge:0);
  if(p.swing?.kind==='skill2'&&p.swing.age>p.swing.windup&&p.swing.age<p.swing.windup+p.swing.active){for(let i=2;i>0;i--){c.save();c.globalAlpha=.12/i;hunter(c,p.x/2-p.face*i*12,p.y/2,b.save.gender,b.w.id,p.face,b.elapsed,p.action,false,p);c.restore();}}
