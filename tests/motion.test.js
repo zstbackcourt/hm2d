@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {Battle} from '../dist/src/engine.js';
+import {createSave} from '../dist/src/model.js';
+const make=()=>{const b=new Battle(createSave('动作测试','male'),0);b.m.x=b.p.x+65;b.m.timer=10;return b;};
+const tick=(b,n)=>{for(let i=0;i<n;i++)b.step(1/60);};
+test('attack has anticipation and exactly one contact before recovery',()=>{const b=make();b.act('attack');assert.equal(b.m.hp,520);tick(b,3);assert.equal(b.m.hp,520);tick(b,12);assert.ok(b.m.hp<520);const hp=b.m.hp;tick(b,20);assert.equal(b.m.hp,hp);});
+test('rolling cancels a pending strike without a ghost hit',()=>{const b=make();b.act('attack');b.act('dodge');tick(b,30);assert.equal(b.m.hp,520);});
+test('skill movement progresses over time instead of teleporting',()=>{const b=make(),x=b.p.x;b.act('skill2');assert.equal(b.p.x,x);tick(b,24);assert.ok(b.p.x>x+40);});
+test('impact briefly freezes combat and then resumes',()=>{const b=make();b.hit(20);const x=b.m.x;b.step(1/60,{right:true});assert.equal(b.m.x,x);assert.equal(b.p.x,240);tick(b,12);b.step(1/60,{right:true});assert.ok(b.p.x>240);});
+test('held attacks can turn around between swings',()=>{const b=make();b.m.x=1500;b.act('attack');for(let i=0;i<90;i++)b.step(1/60,{left:true,attack:true});assert.equal(b.p.face,-1);});
+test('ranged projectile is released at contact, never at input',()=>{const save=createSave('弩手','female');save.weapon='lbg';const b=new Battle(save,0);b.act('attack');assert.equal(b.projectiles.length,0);tick(b,14);assert.equal(b.projectiles.length,1);});
+test('canceling a skill preserves its paid cooldown',()=>{const b=make();b.act('skill1');b.act('dodge');tick(b,30);assert.ok(b.p.c1>4);assert.equal(b.act('skill1'),false);assert.equal(b.m.hp,520);});
