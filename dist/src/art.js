@@ -1,3 +1,4 @@
+import {drawEcology} from './ecology.js';
 import {hunterPose,monsterPose,clamp} from './motion.js';
 import {MONSTERS} from './content.js';
 // Pixel silhouettes are drawn on a low-resolution canvas; no remote assets.
@@ -13,6 +14,7 @@ export function background(c,W,H,area=0,time=0,camera=0){const floor=H-32;const 
  for(let i=-1;i<7;i++){mountain(c,i*120-(camera*.13)%120,floor-24,170,80+noise(i+3)*55,p[2]);}for(let i=-1;i<9;i++)mountain(c,i*83-(camera*.27)%83,floor-8,110,45+noise(i+9)*55,p[3]);
  for(let i=-1;i<12;i++){const x=i*62-(camera*.45)%62;if(area!==2)pine(c,x,floor, .5+noise(i+20)*.7,p[4]);else mountain(c,x,floor,38,30+noise(i+20)*70,p[4]);}
  if(area===0){const x=325-camera*.25;rect(c,x,floor-71,6,72,'#66554b');rect(c,x+57,floor-71,6,72,'#66554b');rect(c,x-10,floor-75,83,7,'#785c4e');rect(c,x-14,floor-82,91,5,'#514e43');rect(c,x-18,floor-85,12,5,'#514e43');rect(c,x+69,floor-85,12,5,'#514e43');rect(c,x+3,floor-58,58,5,'#785c4e');rect(c,x+29,floor-73,7,17,'#c09a68');}
+ drawEcology(c,W,floor,area,time,camera,!!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
  rect(c,0,floor,W,H-floor,'#303f3b');rect(c,0,floor,W,5,p[5]);rect(c,0,floor+5,W,5,area===2?'#a15b48':'#6b8270');
  for(let i=0;i<W/7;i++){let x=i*7;rect(c,x,floor+11+noise(i+10)*14,3+Math.floor(noise(i)*5),2,area===2?'#be6845':'#4b5950');if(area===2&&i%5===0)rect(c,x,floor+17,9,3,'#f8a75f');if(area===0&&i%3===0){rect(c,x,floor-3,2,5,'#6d8970');rect(c,x+3,floor-5,2,7,'#6d8970');}}
  for(let i=0;i<13;i++){const x=(noise(i+50)*W+time*(2+i%3))%W,y=30+noise(i+80)*(floor-40)+Math.sin(time+i)*4;rect(c,x,y,area===2?2:1,2,area===2?'#e7a36a':'#e7e3bd');}
