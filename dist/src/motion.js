@@ -1,3 +1,4 @@
+import {normalVariants} from './normal-attacks.js';
 export const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const ease=x=>{x=clamp(x);return x*x*(3-2*x);};
 const mix=(a,b,t)=>a+(b-a)*t;
@@ -60,15 +61,15 @@ export function hunterPose(p,t,weapon='ls'){
    pose=track(pose,[[0,{}],[start,{weapon:-.65,handX:0,handY:-46,lean:-.19,bob:-2,legA:-.5,legB:.5,kneeA:.8,kneeB:.65,twoHand:1}],
     [end,{weapon:2.75,handX:17,handY:-23,lean:.48,bob:5,legA:-.6,legB:.6,kneeA:.7,kneeB:.65,twoHand:1}],[1,{}]],phase);
   }else{
-   const reverse=a.combo===1&&!a.heavy&&!a.thrust&&!a.ranged;
-   pose=track(pose,[[0,{}],[start,{weapon:reverse?2.7:-1.45,handX:6,handY:a.heavy?-34:-24,lean:-.2,twoHand:a.heavy?1:0}],
-    [end,{weapon:reverse?-.9:2.6,handX:17,handY:-22,lean:.3,twoHand:a.heavy?1:0}],[1,{}]],phase);
+   const variants=normalVariants({id:weapon,ranged:a.ranged}),v=variants[a.variant??0]||variants[0];
+   const contact=a.impact/a.duration,follow=Math.min(.88,end+.12);
+   pose=track(pose,[[0,{}],[start,v.prep],[contact,v.hit],[follow,v.follow],[1,{}]],phase);
   }
   const strength=Math.sin(Math.PI*clamp((a.age-a.windup)/a.active));
-  if(a.thrust&&a.kind!=='ult'&&a.kind!=='skill2'){
+  if(a.thrust&&a.kind==='skill1'){
    pose.weapon=mix(pose.weapon,1.57,ease(phase/start)*(1-ease((phase-end)/(1-end))));pose.handX+=strength*10;
   }
-  if(a.ranged){
+  if(a.ranged&&a.kind!=='attack'){
    // Aim high, slide low, or brace an ultimate: distinct even before firing.
    const target=a.kind==='skill1'?{weapon:-.3,handX:15,handY:-35,lean:-.12,bob:0}:
     a.kind==='skill2'?{weapon:.15,handX:7,handY:-14,lean:.35,bob:7}:

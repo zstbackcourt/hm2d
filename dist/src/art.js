@@ -49,7 +49,7 @@ export function hunter(c,x,y,gender='male',weapon='ls',face=1,t=0,action='idle',
  if(pose.trail>0&&a&&!a.ranged){
   c.save();c.translate(pose.handX,pose.handY);c.globalAlpha*=pose.trail*.8;
   c.strokeStyle=a.kind==='ult'?'#ffd875':a.kind==='attack'?'#fff3ce':'#8de2d0';c.lineWidth=a.kind==='ult'?5:3;c.beginPath();
-  if(a.kind==='skill2'||a.thrust&&a.kind!=='ult'){c.moveTo(-15,0);c.lineTo(a.range/2,0);}
+  if(a.kind==='skill2'||(a.kind==='attack'?a.trailStyle==='line':a.thrust&&a.kind!=='ult')){c.moveTo(-15,0);c.lineTo(a.range/2,0);}
   else if(a.kind==='ult'){c.arc(0,0,55,-1.8,1.25);c.moveTo(40,-52);c.lineTo(47,28);}
   else c.arc(0,0,a.kind==='skill1'?52:42,pose.weapon-3,pose.weapon-1.1);
   c.stroke();c.restore();

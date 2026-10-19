@@ -1,3 +1,4 @@
+import {chooseNormalVariant,normalVariants} from './normal-attacks.js';
 import {monsterAttack,monsterMouth} from './monster-motion.js';
 import {getWeapon,MONSTERS} from './content.js';
 import {attackMotion,clamp} from './motion.js';
@@ -22,6 +23,7 @@ export class Battle {
  const profile=attackMotion(w,action);p.combo=p.comboTime>0?(p.combo+1)%3:0;p.comboTime=1.2;
  p.cool=profile.duration;p.anim=profile.duration;p.action=action;
  p.swing={...profile,kind:action,age:0,face:p.face,combo:p.combo,damage:p.attack*multiplier,range,hit:false,canLaunch:p.y===0&&p.vy===0,launched:false};
+ if(action==='attack'){const variant=chooseNormalVariant(w,p.lastNormalVariant);p.lastNormalVariant=variant;p.swing.variant=variant;p.swing.trailStyle=normalVariants(w)[variant].trail;}
  this.event(action);return true;
  }
  bodyShape(){return [{radius:72,height:82},{radius:80,height:125},{radius:76,height:90}][this.index];}
